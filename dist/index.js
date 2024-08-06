@@ -30132,8 +30132,13 @@ class ReviewAppService {
     }
     getAppWebUrl(id) {
         return __awaiter(this, void 0, void 0, function* () {
-            const { web_url } = yield this.client.get(`/apps/${id}`);
-            return web_url;
+            try {
+                const { web_url } = yield this.client.get(`/apps/${id}`);
+                return web_url;
+            }
+            catch (e) {
+                console.log('Unable to fetch web_url', e);
+            }
         });
     }
 }
