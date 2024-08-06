@@ -8,6 +8,8 @@ inputs:
 outputs:
   app_id:
     description: 'The ID of the affected review app'
+  web_url:
+    description: 'The web_url of the affected review app (only available when action is "create")'
 runs:
   using: 'node20'
   main: 'dist/index.js'
