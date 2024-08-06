@@ -30090,7 +30090,7 @@ class ReviewAppService {
     }
     createReviewApp(_a) {
         return __awaiter(this, arguments, void 0, function* ({ branch, pr_number, url, version }) {
-            var _b, _c, _d, _e;
+            var _b, _c, _d, _e, _f;
             const input = {
                 branch,
                 pipeline: this.pipeline,
@@ -30106,14 +30106,14 @@ class ReviewAppService {
             const ra = yield this.client.post('/review-apps', {
                 body: input,
             });
-            (_d = this.logger) === null || _d === void 0 ? void 0 : _d.debug(JSON.stringify(ra));
+            (_d = this.logger) === null || _d === void 0 ? void 0 : _d.info(JSON.stringify(ra));
             (_e = this.logger) === null || _e === void 0 ? void 0 : _e.info('Review App created');
-            return ra.app.id;
+            return (_f = ra.app) === null || _f === void 0 ? void 0 : _f.id;
         });
     }
     destroyReviewApp(pr_number) {
         return __awaiter(this, void 0, void 0, function* () {
-            var _a, _b, _c, _d;
+            var _a, _b, _c, _d, _e;
             (_a = this.logger) === null || _a === void 0 ? void 0 : _a.info('Fetching Review Apps list');
             // List review apps for pipeline
             const reviewApps = yield this.client.get(`/pipelines/${this.pipeline}/review-apps`);
@@ -30127,7 +30127,7 @@ class ReviewAppService {
             // Delete review app
             yield this.client.delete(`/review-apps/${ra.id}`);
             (_d = this.logger) === null || _d === void 0 ? void 0 : _d.info('Review App destroyed');
-            return ra.app.id;
+            return (_e = ra.app) === null || _e === void 0 ? void 0 : _e.id;
         });
     }
     getAppWebUrl(id) {
