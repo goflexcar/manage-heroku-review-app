@@ -81,8 +81,12 @@ export class ReviewAppService {
   }
 
   async getAppWebUrl(id: string) {
-    const { web_url }: { web_url: string } = await this.client.get(`/apps/${id}`);
+    try {
+      const { web_url }: { web_url: string } = await this.client.get(`/apps/${id}`);
 
-    return web_url;
+      return web_url;
+    } catch (e) {
+      console.log('Unable to fetch web_url', e);
+    }
   }
 }
