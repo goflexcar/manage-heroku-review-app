@@ -4,7 +4,7 @@ import type { Logger } from '../types';
 interface ReviewApp {
   id: string;
   pr_number: number;
-  app: {
+  app?: {
     id: string;
   };
 }
@@ -48,14 +48,20 @@ export class ReviewAppService {
     this.logger?.debug(JSON.stringify(input));
 
     // Create review app
-    const ra: ReviewApp = await this.client.post('/review-apps', {
+    const { id }: ReviewApp = await this.client.post('/review-apps', {
       body: input,
     });
 
-    this.logger?.info(JSON.stringify(ra));
-    this.logger?.info('Review App created');
+    this.logger?.info(`Review App created ${id}`);
 
-    return ra.app?.id;
+    this.logger?.info(`Get app ID for review app ID ${id}`);
+
+    // Get app ID (this is not returned in the POST response but is available soon after)
+    const { app }: ReviewApp = await this.client.get(`/review-apps/${id}`);
+
+    this.logger?.info(`Got app ID ${app?.id} for review app ID ${id}`);
+
+    return app?.id;
   }
 
   async destroyReviewApp(pr_number: number) {
@@ -83,8 +89,12 @@ export class ReviewAppService {
     return ra.app?.id;
   }
 
-  async getAppWebUrl(id: string) {
+  async getAppWebUrl(id?: string) {
     try {
+      if (!id) {
+        return;
+      }
+
       const { web_url }: { web_url: string } = await this.client.get(`/apps/${id}`);
 
       return web_url;

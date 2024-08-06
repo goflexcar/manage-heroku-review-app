@@ -30103,12 +30103,15 @@ class ReviewAppService {
             (_b = this.logger) === null || _b === void 0 ? void 0 : _b.info('Creating Review App');
             (_c = this.logger) === null || _c === void 0 ? void 0 : _c.debug(JSON.stringify(input));
             // Create review app
-            const ra = yield this.client.post('/review-apps', {
+            const { id } = yield this.client.post('/review-apps', {
                 body: input,
             });
-            (_d = this.logger) === null || _d === void 0 ? void 0 : _d.info(JSON.stringify(ra));
-            (_e = this.logger) === null || _e === void 0 ? void 0 : _e.info('Review App created');
-            return (_f = ra.app) === null || _f === void 0 ? void 0 : _f.id;
+            (_d = this.logger) === null || _d === void 0 ? void 0 : _d.info(`Review App created ${id}`);
+            (_e = this.logger) === null || _e === void 0 ? void 0 : _e.info(`Get app ID for review app ID ${id}`);
+            // Get app ID (this is not returned in the POST response but is available soon after)
+            const { app } = yield this.client.get(`/review-apps/${id}`);
+            (_f = this.logger) === null || _f === void 0 ? void 0 : _f.info(`Got app ID ${app === null || app === void 0 ? void 0 : app.id} for review app ID ${id}`);
+            return app === null || app === void 0 ? void 0 : app.id;
         });
     }
     destroyReviewApp(pr_number) {
@@ -30134,6 +30137,9 @@ class ReviewAppService {
         return __awaiter(this, void 0, void 0, function* () {
             var _a, _b;
             try {
+                if (!id) {
+                    return;
+                }
                 const { web_url } = yield this.client.get(`/apps/${id}`);
                 return web_url;
             }
