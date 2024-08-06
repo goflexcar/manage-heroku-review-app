@@ -52,10 +52,10 @@ export class ReviewAppService {
       body: input,
     });
 
-    this.logger?.debug(JSON.stringify(ra));
+    this.logger?.info(JSON.stringify(ra));
     this.logger?.info('Review App created');
 
-    return ra.app.id;
+    return ra.app?.id;
   }
 
   async destroyReviewApp(pr_number: number) {
@@ -80,7 +80,7 @@ export class ReviewAppService {
 
     this.logger?.info('Review App destroyed');
 
-    return ra.app.id;
+    return ra.app?.id;
   }
 
   async getAppWebUrl(id: string) {
