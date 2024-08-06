@@ -4,9 +4,6 @@ import type { Logger } from '../types';
 interface ReviewApp {
   id: string;
   pr_number: number;
-  app?: {
-    id: string;
-  };
 }
 
 export type CreateReviewAppInput = {
@@ -48,20 +45,14 @@ export class ReviewAppService {
     this.logger?.debug(JSON.stringify(input));
 
     // Create review app
-    const { id }: ReviewApp = await this.client.post('/review-apps', {
+    const ra: ReviewApp = await this.client.post('/review-apps', {
       body: input,
     });
 
-    this.logger?.info(`Review App created ${id}`);
+    this.logger?.debug(JSON.stringify(ra));
+    this.logger?.info('Review App created');
 
-    this.logger?.info(`Get app ID for review app ID ${id}`);
-
-    // Get app ID (this is not returned in the POST response but is available soon after)
-    const { app }: ReviewApp = await this.client.get(`/review-apps/${id}`);
-
-    this.logger?.info(`Got app ID ${app?.id} for review app ID ${id}`);
-
-    return app?.id;
+    return ra;
   }
 
   async destroyReviewApp(pr_number: number) {
@@ -75,32 +66,19 @@ export class ReviewAppService {
     // Find review app by PR number
     const ra = reviewApps.find((ra) => ra.pr_number == pr_number);
     if (!ra) {
-      this.logger?.info('Review App not found (nothing to do)');
+      this.logger?.info(`Review App not found for PR ${pr_number} (nothing to do)`);
       return;
     }
 
-    this.logger?.info('Destroying Review App');
+    this.logger?.info(`Destroying Review App for PR ${pr_number}`);
+    this.logger?.debug(JSON.stringify(ra));
 
     // Delete review app
-    await this.client.delete(`/review-apps/${ra.id}`);
+    const response = await this.client.delete(`/review-apps/${ra.id}`);
 
+    this.logger?.debug(JSON.stringify(response));
     this.logger?.info('Review App destroyed');
 
-    return ra.app?.id;
-  }
-
-  async getAppWebUrl(id?: string) {
-    try {
-      if (!id) {
-        return;
-      }
-
-      const { web_url }: { web_url: string } = await this.client.get(`/apps/${id}`);
-
-      return web_url;
-    } catch (e) {
-      this.logger?.warning(`Unable to fetch web_url for id ${id}`);
-      this.logger?.warning(e as Error);
-    }
+    return ra;
   }
 }

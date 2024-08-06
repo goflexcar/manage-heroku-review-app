@@ -30090,7 +30090,7 @@ class ReviewAppService {
     }
     createReviewApp(_a) {
         return __awaiter(this, arguments, void 0, function* ({ branch, pr_number, url, version }) {
-            var _b, _c, _d, _e, _f;
+            var _b, _c, _d, _e;
             const input = {
                 branch,
                 pipeline: this.pipeline,
@@ -30103,50 +30103,33 @@ class ReviewAppService {
             (_b = this.logger) === null || _b === void 0 ? void 0 : _b.info('Creating Review App');
             (_c = this.logger) === null || _c === void 0 ? void 0 : _c.debug(JSON.stringify(input));
             // Create review app
-            const { id } = yield this.client.post('/review-apps', {
+            const ra = yield this.client.post('/review-apps', {
                 body: input,
             });
-            (_d = this.logger) === null || _d === void 0 ? void 0 : _d.info(`Review App created ${id}`);
-            (_e = this.logger) === null || _e === void 0 ? void 0 : _e.info(`Get app ID for review app ID ${id}`);
-            // Get app ID (this is not returned in the POST response but is available soon after)
-            const { app } = yield this.client.get(`/review-apps/${id}`);
-            (_f = this.logger) === null || _f === void 0 ? void 0 : _f.info(`Got app ID ${app === null || app === void 0 ? void 0 : app.id} for review app ID ${id}`);
-            return app === null || app === void 0 ? void 0 : app.id;
+            (_d = this.logger) === null || _d === void 0 ? void 0 : _d.debug(JSON.stringify(ra));
+            (_e = this.logger) === null || _e === void 0 ? void 0 : _e.info('Review App created');
+            return ra;
         });
     }
     destroyReviewApp(pr_number) {
         return __awaiter(this, void 0, void 0, function* () {
-            var _a, _b, _c, _d, _e;
+            var _a, _b, _c, _d, _e, _f;
             (_a = this.logger) === null || _a === void 0 ? void 0 : _a.info('Fetching Review Apps list');
             // List review apps for pipeline
             const reviewApps = yield this.client.get(`/pipelines/${this.pipeline}/review-apps`);
             // Find review app by PR number
             const ra = reviewApps.find((ra) => ra.pr_number == pr_number);
             if (!ra) {
-                (_b = this.logger) === null || _b === void 0 ? void 0 : _b.info('Review App not found (nothing to do)');
+                (_b = this.logger) === null || _b === void 0 ? void 0 : _b.info(`Review App not found for PR ${pr_number} (nothing to do)`);
                 return;
             }
-            (_c = this.logger) === null || _c === void 0 ? void 0 : _c.info('Destroying Review App');
+            (_c = this.logger) === null || _c === void 0 ? void 0 : _c.info(`Destroying Review App for PR ${pr_number}`);
+            (_d = this.logger) === null || _d === void 0 ? void 0 : _d.debug(JSON.stringify(ra));
             // Delete review app
-            yield this.client.delete(`/review-apps/${ra.id}`);
-            (_d = this.logger) === null || _d === void 0 ? void 0 : _d.info('Review App destroyed');
-            return (_e = ra.app) === null || _e === void 0 ? void 0 : _e.id;
-        });
-    }
-    getAppWebUrl(id) {
-        return __awaiter(this, void 0, void 0, function* () {
-            var _a, _b;
-            try {
-                if (!id) {
-                    return;
-                }
-                const { web_url } = yield this.client.get(`/apps/${id}`);
-                return web_url;
-            }
-            catch (e) {
-                (_a = this.logger) === null || _a === void 0 ? void 0 : _a.warning(`Unable to fetch web_url for id ${id}`);
-                (_b = this.logger) === null || _b === void 0 ? void 0 : _b.warning(e);
-            }
+            const response = yield this.client.delete(`/review-apps/${ra.id}`);
+            (_e = this.logger) === null || _e === void 0 ? void 0 : _e.debug(JSON.stringify(response));
+            (_f = this.logger) === null || _f === void 0 ? void 0 : _f.info('Review App destroyed');
+            return ra;
         });
     }
 }
@@ -30235,22 +30218,21 @@ const review_app_service_1 = __nccwpck_require__(4326);
                     // Create review app
                     const { owner, repo } = github.context.issue;
                     const { ref, sha } = pr.head;
-                    const app_id = yield service.createReviewApp({
+                    const { id } = yield service.createReviewApp({
                         branch: ref,
                         pr_number: pr.number,
                         version: sha,
                         url: yield gh.getTarballUrl(owner, repo, ref),
                     });
                     // Set outputs
-                    core.setOutput('app_id', app_id);
-                    core.setOutput('web_url', yield service.getAppWebUrl(app_id));
+                    core.setOutput('review_app_id', id);
                     break;
                 }
                 case 'destroy': {
                     // Destroy review app
-                    const app_id = yield service.destroyReviewApp(pr.number);
+                    const review_app = yield service.destroyReviewApp(pr.number);
                     // Set outputs
-                    core.setOutput('app_id', app_id);
+                    core.setOutput('review_app_id', review_app === null || review_app === void 0 ? void 0 : review_app.id);
                     break;
                 }
                 default:

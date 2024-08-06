@@ -43,7 +43,7 @@ import { ReviewAppService } from './heroku/review-app.service';
         // Create review app
         const { owner, repo } = github.context.issue;
         const { ref, sha } = pr.head;
-        const app_id = await service.createReviewApp({
+        const { id } = await service.createReviewApp({
           branch: ref,
           pr_number: pr.number,
           version: sha,
@@ -51,17 +51,16 @@ import { ReviewAppService } from './heroku/review-app.service';
         });
 
         // Set outputs
-        core.setOutput('app_id', app_id);
-        core.setOutput('web_url', await service.getAppWebUrl(app_id));
+        core.setOutput('review_app_id', id);
         break;
       }
 
       case 'destroy': {
         // Destroy review app
-        const app_id = await service.destroyReviewApp(pr.number);
+        const review_app = await service.destroyReviewApp(pr.number);
 
         // Set outputs
-        core.setOutput('app_id', app_id);
+        core.setOutput('review_app_id', review_app?.id);
         break;
       }
 

@@ -6,10 +6,8 @@ inputs:
     required: true
     default: 'create'
 outputs:
-  app_id:
-    description: 'The ID of the affected review app'
-  web_url:
-    description: 'The web_url of the affected review app (only available when action is "create")'
+  review_app_id:
+    description: 'The affected review app ID (not the same as app ID)'
 runs:
   using: 'node20'
   main: 'dist/index.js'
