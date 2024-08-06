@@ -30022,6 +30022,126 @@ function wrappy (fn, cb) {
 
 /***/ }),
 
+/***/ 4274:
+/***/ (function(__unused_webpack_module, exports) {
+
+"use strict";
+
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.GitHubService = void 0;
+class GitHubService {
+    constructor({ logger, octokit }) {
+        this.logger = logger;
+        this.octokit = octokit;
+    }
+    getTarballUrl(owner, repo, ref) {
+        return __awaiter(this, void 0, void 0, function* () {
+            var _a, _b;
+            if (!this.octokit) {
+                throw new Error("Couldn't connect to GitHub, make sure the GITHUB_TOKEN is a valid token");
+            }
+            (_a = this.logger) === null || _a === void 0 ? void 0 : _a.debug('Fetching tarball URL');
+            const { url } = yield this.octokit.rest.repos.downloadTarballArchive({
+                method: 'HEAD',
+                owner,
+                repo,
+                ref,
+            });
+            (_b = this.logger) === null || _b === void 0 ? void 0 : _b.debug(`Fetched tarball URL ${url}`);
+            return url;
+        });
+    }
+}
+exports.GitHubService = GitHubService;
+
+
+/***/ }),
+
+/***/ 4326:
+/***/ (function(__unused_webpack_module, exports) {
+
+"use strict";
+
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.ReviewAppService = void 0;
+class ReviewAppService {
+    constructor({ client, logger, pipeline: pipelineId }) {
+        this.client = client;
+        this.logger = logger;
+        this.pipeline = pipelineId;
+    }
+    createReviewApp(_a) {
+        return __awaiter(this, arguments, void 0, function* ({ branch, pr_number, url, version }) {
+            var _b, _c, _d, _e;
+            const input = {
+                branch,
+                pipeline: this.pipeline,
+                source_blob: {
+                    url,
+                    version,
+                },
+                pr_number,
+            };
+            (_b = this.logger) === null || _b === void 0 ? void 0 : _b.info('Creating Review App');
+            (_c = this.logger) === null || _c === void 0 ? void 0 : _c.debug(JSON.stringify(input));
+            // Create review app
+            const app = yield this.client.post('/review-apps', {
+                body: input,
+            });
+            (_d = this.logger) === null || _d === void 0 ? void 0 : _d.debug(JSON.stringify(app));
+            (_e = this.logger) === null || _e === void 0 ? void 0 : _e.info('Review App created');
+            return app.id;
+        });
+    }
+    destroyReviewApp(pr_number) {
+        return __awaiter(this, void 0, void 0, function* () {
+            var _a, _b, _c, _d;
+            (_a = this.logger) === null || _a === void 0 ? void 0 : _a.info('Fetching Review Apps list');
+            // List review apps for pipeline
+            const reviewApps = yield this.client.get(`/pipelines/${this.pipeline}/review-apps`);
+            // Find review app by PR number
+            const app = reviewApps.find((app) => app.pr_number == pr_number);
+            if (!app) {
+                (_b = this.logger) === null || _b === void 0 ? void 0 : _b.info('Review App not found (nothing to do)');
+                return;
+            }
+            (_c = this.logger) === null || _c === void 0 ? void 0 : _c.info('Destroying Review App');
+            // Delete review app
+            yield this.client.delete(`/review-apps/${app.id}`);
+            (_d = this.logger) === null || _d === void 0 ? void 0 : _d.info('Review App destroyed');
+            return app.id;
+        });
+    }
+    getAppWebUrl(id) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const { web_url } = yield this.client.get(`/apps/${id}`);
+            return web_url;
+        });
+    }
+}
+exports.ReviewAppService = ReviewAppService;
+
+
+/***/ }),
+
 /***/ 6144:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
@@ -30066,108 +30186,75 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 const core = __importStar(__nccwpck_require__(2186));
 const github = __importStar(__nccwpck_require__(5438));
 const heroku_client_1 = __importDefault(__nccwpck_require__(504));
-function run() {
+const github_service_1 = __nccwpck_require__(4274);
+const review_app_service_1 = __nccwpck_require__(4326);
+(function run() {
     return __awaiter(this, void 0, void 0, function* () {
-        core.debug(JSON.stringify(github.context));
-        const ctx = github.context;
-        const pr = ctx.payload.pull_request;
-        const branch = pr.head.ref;
-        const version = pr.head.sha;
-        const pr_number = pr.number;
-        const action = core.getInput('action');
-        const issue = ctx.issue;
-        const pipeline = process.env.HEROKU_PIPELINE_ID;
-        core.debug('connecting to heroku');
-        let heroku;
         try {
-            heroku = new heroku_client_1.default({ token: process.env.HEROKU_API_TOKEN });
+            core.debug(JSON.stringify(github.context));
+            // Get environment values
+            const { HEROKU_API_TOKEN, HEROKU_PIPELINE_ID, GITHUB_TOKEN } = process.env;
+            if (!HEROKU_API_TOKEN || !HEROKU_PIPELINE_ID) {
+                throw new Error('HEROKU_API_TOKEN and HEROKU_PIPELINE_ID are both required');
+            }
+            // Create ReviewAppService instance
+            const service = new review_app_service_1.ReviewAppService({
+                client: new heroku_client_1.default({ token: HEROKU_API_TOKEN }),
+                pipeline: HEROKU_PIPELINE_ID,
+                logger: core,
+            });
+            // Get PR context
+            const pr = github.context.payload.pull_request;
+            if (!pr) {
+                throw new Error('Missing pull_request payload context');
+            }
+            // Handle action
+            switch (core.getInput('action')) {
+                case 'create': {
+                    if (!GITHUB_TOKEN) {
+                        throw new Error('GITHUB_TOKEN is required to create review apps');
+                    }
+                    // Create GitHubService instance
+                    const gh = new github_service_1.GitHubService({
+                        octokit: github.getOctokit(GITHUB_TOKEN),
+                        logger: core,
+                    });
+                    // Create review app
+                    const { owner, repo } = github.context.issue;
+                    const { ref, sha } = pr.head;
+                    const app_id = yield service.createReviewApp({
+                        branch: ref,
+                        pr_number: pr.number,
+                        version: sha,
+                        url: yield gh.getTarballUrl(owner, repo, ref),
+                    });
+                    // Set outputs
+                    core.setOutput('app_id', app_id);
+                    core.setOutput('web_url', yield service.getAppWebUrl(app_id));
+                    break;
+                }
+                case 'destroy': {
+                    // Destroy review app
+                    const app_id = yield service.destroyReviewApp(pr.number);
+                    // Set outputs
+                    core.setOutput('app_id', app_id);
+                    break;
+                }
+                default:
+                    core.warning("Invalid action, no action was performed, use one of 'create' or 'destroy'");
+                    break;
+            }
         }
         catch (error) {
-            core.error(JSON.stringify(error));
-        }
-        if (!heroku) {
-            core.error("Couldn't connect to Heroku, make sure the HEROKU_API_TOKEN is set");
-            return;
-        }
-        const destroyReviewApp = () => __awaiter(this, void 0, void 0, function* () {
-            core.info('Fetching Review Apps list');
-            try {
-                const reviewApps = yield heroku.get(`/pipelines/${pipeline}/review-apps`);
-                const app = reviewApps.find((app) => app.pr_number == pr_number);
-                if (app) {
-                    core.setOutput('app_id', app.id);
-                    core.info('Destroying Review App');
-                    yield heroku.delete(`/review-apps/${app.id}`);
-                    core.info('Review App destroyed');
-                }
+            if (error instanceof Error || typeof error === 'string') {
+                core.setFailed(error);
             }
-            catch (error) {
-                core.error(JSON.stringify(error));
-                return;
+            else {
+                core.setFailed('Unknown fatal error');
             }
-        });
-        const createReviewApp = () => __awaiter(this, void 0, void 0, function* () {
-            var _a;
-            core.debug('init octokit');
-            if (!process.env.GITHUB_TOKEN) {
-                core.error("Couldn't connect to GitHub, make sure the GITHUB_TOKEN secret is set");
-                return;
-            }
-            const octokit = github.getOctokit(process.env.GITHUB_TOKEN);
-            if (!octokit) {
-                core.error("Couldn't connect to GitHub, make sure the GITHUB_TOKEN is a valid token");
-                return;
-            }
-            const { url } = yield octokit.rest.repos.downloadTarballArchive({
-                method: 'HEAD',
-                owner: issue.owner,
-                repo: issue.repo,
-                ref: branch,
-            });
-            try {
-                core.info('Creating Review App');
-                core.debug(JSON.stringify({
-                    branch,
-                    pipeline,
-                    source_blob: {
-                        url,
-                        version,
-                    },
-                    pr_number,
-                }));
-                const response = yield heroku.post('/review-apps', {
-                    body: {
-                        branch,
-                        pipeline,
-                        source_blob: {
-                            url,
-                            version,
-                        },
-                        pr_number,
-                    },
-                });
-                core.debug(response);
-                core.info('Review App created');
-                core.setOutput('app_id', (_a = response.app) === null || _a === void 0 ? void 0 : _a.id);
-            }
-            catch (error) {
-                core.error(JSON.stringify(error));
-            }
-        });
-        switch (action) {
-            case 'destroy':
-                destroyReviewApp();
-                break;
-            case 'create':
-                createReviewApp();
-                break;
-            default:
-                core.debug("Invalid action, no action was performed, use one of 'create' or 'destroy'");
-                break;
         }
     });
-}
-run();
+})();
 
 
 /***/ }),

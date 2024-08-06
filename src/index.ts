@@ -1,130 +1,81 @@
 import * as core from '@actions/core';
 import * as github from '@actions/github';
 import HerokuClient from 'heroku-client';
+import { GitHubService } from './github/github.service';
+import { ReviewAppService } from './heroku/review-app.service';
 
-interface ReviewApp {
-  pr_number: number;
-  id: number;
-}
-
-interface TarballResponse {
-  status: number;
-  url: string;
-}
-
-async function run() {
-  core.debug(JSON.stringify(github.context));
-
-  const ctx = github.context;
-  const pr = ctx.payload.pull_request!;
-  const branch = pr.head.ref;
-  const version = pr.head.sha;
-  const pr_number = pr.number;
-  const action = core.getInput('action');
-  const issue = ctx.issue;
-  const pipeline = process.env.HEROKU_PIPELINE_ID;
-
-  core.debug('connecting to heroku');
-  let heroku: HerokuClient | undefined;
-
+(async function run() {
   try {
-    heroku = new HerokuClient({ token: process.env.HEROKU_API_TOKEN });
-  } catch (error) {
-    core.error(JSON.stringify(error));
-  }
+    core.debug(JSON.stringify(github.context));
 
-  if (!heroku) {
-    core.error("Couldn't connect to Heroku, make sure the HEROKU_API_TOKEN is set");
-    return;
-  }
-
-  const destroyReviewApp = async () => {
-    core.info('Fetching Review Apps list');
-    try {
-      const reviewApps: ReviewApp[] = await heroku!.get(
-        `/pipelines/${pipeline}/review-apps`
-      );
-
-      const app = reviewApps.find((app) => app.pr_number == pr_number);
-      if (app) {
-        core.setOutput('app_id', app.id);
-        core.info('Destroying Review App');
-        await heroku!.delete(`/review-apps/${app.id}`);
-        core.info('Review App destroyed');
-      }
-    } catch (error) {
-      core.error(JSON.stringify(error));
-      return;
-    }
-  };
-
-  const createReviewApp = async () => {
-    core.debug('init octokit');
-    if (!process.env.GITHUB_TOKEN) {
-      core.error("Couldn't connect to GitHub, make sure the GITHUB_TOKEN secret is set");
-      return;
-    }
-    const octokit = github.getOctokit(process.env.GITHUB_TOKEN);
-
-    if (!octokit) {
-      core.error(
-        "Couldn't connect to GitHub, make sure the GITHUB_TOKEN is a valid token"
-      );
-      return;
+    // Get environment values
+    const { HEROKU_API_TOKEN, HEROKU_PIPELINE_ID, GITHUB_TOKEN } = process.env;
+    if (!HEROKU_API_TOKEN || !HEROKU_PIPELINE_ID) {
+      throw new Error('HEROKU_API_TOKEN and HEROKU_PIPELINE_ID are both required');
     }
 
-    const { url }: TarballResponse = await octokit.rest.repos.downloadTarballArchive({
-      method: 'HEAD',
-      owner: issue.owner,
-      repo: issue.repo,
-      ref: branch,
+    // Create ReviewAppService instance
+    const service = new ReviewAppService({
+      client: new HerokuClient({ token: HEROKU_API_TOKEN }),
+      pipeline: HEROKU_PIPELINE_ID,
+      logger: core,
     });
 
-    try {
-      core.info('Creating Review App');
-      core.debug(
-        JSON.stringify({
-          branch,
-          pipeline,
-          source_blob: {
-            url,
-            version,
-          },
-          pr_number,
-        })
-      );
-      const response = await heroku!.post('/review-apps', {
-        body: {
-          branch,
-          pipeline,
-          source_blob: {
-            url,
-            version,
-          },
-          pr_number,
-        },
-      });
-      core.debug(response);
-      core.info('Review App created');
-      core.setOutput('app_id', response.app?.id);
-    } catch (error) {
-      core.error(JSON.stringify(error));
+    // Get PR context
+    const pr = github.context.payload.pull_request;
+    if (!pr) {
+      throw new Error('Missing pull_request payload context');
     }
-  };
 
-  switch (action) {
-    case 'destroy':
-      destroyReviewApp();
-      break;
-    case 'create':
-      createReviewApp();
-      break;
-    default:
-      core.debug(
-        "Invalid action, no action was performed, use one of 'create' or 'destroy'"
-      );
-      break;
+    // Handle action
+    switch (core.getInput('action')) {
+      case 'create': {
+        if (!GITHUB_TOKEN) {
+          throw new Error('GITHUB_TOKEN is required to create review apps');
+        }
+
+        // Create GitHubService instance
+        const gh = new GitHubService({
+          octokit: github.getOctokit(GITHUB_TOKEN),
+          logger: core,
+        });
+
+        // Create review app
+        const { owner, repo } = github.context.issue;
+        const { ref, sha } = pr.head;
+        const app_id = await service.createReviewApp({
+          branch: ref,
+          pr_number: pr.number,
+          version: sha,
+          url: await gh.getTarballUrl(owner, repo, ref),
+        });
+
+        // Set outputs
+        core.setOutput('app_id', app_id);
+        core.setOutput('web_url', await service.getAppWebUrl(app_id));
+        break;
+      }
+
+      case 'destroy': {
+        // Destroy review app
+        const app_id = await service.destroyReviewApp(pr.number);
+
+        // Set outputs
+        core.setOutput('app_id', app_id);
+        break;
+      }
+
+      default:
+        core.warning(
+          "Invalid action, no action was performed, use one of 'create' or 'destroy'"
+        );
+        break;
+    }
+  } catch (error) {
+    if (error instanceof Error || typeof error === 'string') {
+      core.setFailed(error);
+    } else {
+      core.setFailed('Unknown fatal error');
+    }
   }
-}
-
-run();
+})();
