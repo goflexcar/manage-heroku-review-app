@@ -1,7 +1,6 @@
-import * as core from "@actions/core";
-import * as github from "@actions/github";
-import Heroku from "heroku-client/index";
-const HerokuClient = require("heroku-client");
+import * as core from '@actions/core';
+import * as github from '@actions/github';
+import HerokuClient from 'heroku-client';
 
 interface ReviewApp {
   pr_number: number;
@@ -21,12 +20,12 @@ async function run() {
   const branch = pr.head.ref;
   const version = pr.head.sha;
   const pr_number = pr.number;
-  const action = core.getInput("action");
+  const action = core.getInput('action');
   const issue = ctx.issue;
   const pipeline = process.env.HEROKU_PIPELINE_ID;
 
-  core.debug("connecting to heroku");
-  let heroku: Heroku | undefined;
+  core.debug('connecting to heroku');
+  let heroku: HerokuClient | undefined;
 
   try {
     heroku = new HerokuClient({ token: process.env.HEROKU_API_TOKEN });
@@ -35,14 +34,12 @@ async function run() {
   }
 
   if (!heroku) {
-    core.error(
-      "Couldn't connect to Heroku, make sure the HEROKU_API_TOKEN is set"
-    );
+    core.error("Couldn't connect to Heroku, make sure the HEROKU_API_TOKEN is set");
     return;
   }
 
   const destroyReviewApp = async () => {
-    core.info("Fetching Review Apps list");
+    core.info('Fetching Review Apps list');
     try {
       const reviewApps: ReviewApp[] = await heroku!.get(
         `/pipelines/${pipeline}/review-apps`
@@ -50,9 +47,10 @@ async function run() {
 
       const app = reviewApps.find((app) => app.pr_number == pr_number);
       if (app) {
-        core.info("Destroying Review App");
+        core.setOutput('app_id', app.id);
+        core.info('Destroying Review App');
         await heroku!.delete(`/review-apps/${app.id}`);
-        core.info("Review App destroyed");
+        core.info('Review App destroyed');
       }
     } catch (error) {
       core.error(JSON.stringify(error));
@@ -61,11 +59,9 @@ async function run() {
   };
 
   const createReviewApp = async () => {
-    core.debug("init octokit");
+    core.debug('init octokit');
     if (!process.env.GITHUB_TOKEN) {
-      core.error(
-        "Couldn't connect to GitHub, make sure the GITHUB_TOKEN secret is set"
-      );
+      core.error("Couldn't connect to GitHub, make sure the GITHUB_TOKEN secret is set");
       return;
     }
     const octokit = github.getOctokit(process.env.GITHUB_TOKEN);
@@ -77,16 +73,15 @@ async function run() {
       return;
     }
 
-    const { url }: TarballResponse =
-      await octokit.rest.repos.downloadTarballArchive({
-        method: "HEAD",
-        owner: issue.owner,
-        repo: issue.repo,
-        ref: branch,
-      });
+    const { url }: TarballResponse = await octokit.rest.repos.downloadTarballArchive({
+      method: 'HEAD',
+      owner: issue.owner,
+      repo: issue.repo,
+      ref: branch,
+    });
 
     try {
-      core.info("Creating Review App");
+      core.info('Creating Review App');
       core.debug(
         JSON.stringify({
           branch,
@@ -98,7 +93,7 @@ async function run() {
           pr_number,
         })
       );
-      const response = await heroku!.post("/review-apps", {
+      const response = await heroku!.post('/review-apps', {
         body: {
           branch,
           pipeline,
@@ -110,17 +105,18 @@ async function run() {
         },
       });
       core.debug(response);
-      core.info("Review App created");
+      core.info('Review App created');
+      core.setOutput('app_id', response.app?.id);
     } catch (error) {
       core.error(JSON.stringify(error));
     }
   };
 
   switch (action) {
-    case "destroy":
+    case 'destroy':
       destroyReviewApp();
       break;
-    case "create":
+    case 'create':
       createReviewApp();
       break;
     default:

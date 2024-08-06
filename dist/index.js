@@ -30059,10 +30059,13 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const core = __importStar(__nccwpck_require__(2186));
 const github = __importStar(__nccwpck_require__(5438));
-const HerokuClient = __nccwpck_require__(504);
+const heroku_client_1 = __importDefault(__nccwpck_require__(504));
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
         core.debug(JSON.stringify(github.context));
@@ -30071,13 +30074,13 @@ function run() {
         const branch = pr.head.ref;
         const version = pr.head.sha;
         const pr_number = pr.number;
-        const action = core.getInput("action");
+        const action = core.getInput('action');
         const issue = ctx.issue;
         const pipeline = process.env.HEROKU_PIPELINE_ID;
-        core.debug("connecting to heroku");
+        core.debug('connecting to heroku');
         let heroku;
         try {
-            heroku = new HerokuClient({ token: process.env.HEROKU_API_TOKEN });
+            heroku = new heroku_client_1.default({ token: process.env.HEROKU_API_TOKEN });
         }
         catch (error) {
             core.error(JSON.stringify(error));
@@ -30087,14 +30090,15 @@ function run() {
             return;
         }
         const destroyReviewApp = () => __awaiter(this, void 0, void 0, function* () {
-            core.info("Fetching Review Apps list");
+            core.info('Fetching Review Apps list');
             try {
                 const reviewApps = yield heroku.get(`/pipelines/${pipeline}/review-apps`);
                 const app = reviewApps.find((app) => app.pr_number == pr_number);
                 if (app) {
-                    core.info("Destroying Review App");
+                    core.setOutput('app_id', app.id);
+                    core.info('Destroying Review App');
                     yield heroku.delete(`/review-apps/${app.id}`);
-                    core.info("Review App destroyed");
+                    core.info('Review App destroyed');
                 }
             }
             catch (error) {
@@ -30103,7 +30107,8 @@ function run() {
             }
         });
         const createReviewApp = () => __awaiter(this, void 0, void 0, function* () {
-            core.debug("init octokit");
+            var _a;
+            core.debug('init octokit');
             if (!process.env.GITHUB_TOKEN) {
                 core.error("Couldn't connect to GitHub, make sure the GITHUB_TOKEN secret is set");
                 return;
@@ -30114,13 +30119,13 @@ function run() {
                 return;
             }
             const { url } = yield octokit.rest.repos.downloadTarballArchive({
-                method: "HEAD",
+                method: 'HEAD',
                 owner: issue.owner,
                 repo: issue.repo,
                 ref: branch,
             });
             try {
-                core.info("Creating Review App");
+                core.info('Creating Review App');
                 core.debug(JSON.stringify({
                     branch,
                     pipeline,
@@ -30130,7 +30135,7 @@ function run() {
                     },
                     pr_number,
                 }));
-                const response = yield heroku.post("/review-apps", {
+                const response = yield heroku.post('/review-apps', {
                     body: {
                         branch,
                         pipeline,
@@ -30142,17 +30147,18 @@ function run() {
                     },
                 });
                 core.debug(response);
-                core.info("Review App created");
+                core.info('Review App created');
+                core.setOutput('app_id', (_a = response.app) === null || _a === void 0 ? void 0 : _a.id);
             }
             catch (error) {
                 core.error(JSON.stringify(error));
             }
         });
         switch (action) {
-            case "destroy":
+            case 'destroy':
                 destroyReviewApp();
                 break;
-            case "create":
+            case 'create':
                 createReviewApp();
                 break;
             default:

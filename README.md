@@ -2,6 +2,8 @@
 
 by FastRuby.io
 
+> Fork: This fork was made to release versions with up-to-date dependencies. Forked releases use `x` as the version prefix (ex `x1`) instead of `v` to differentiate from upstream releases.
+
 # How to:
 
 If you want to create a Review App when the label `create-review-app` is added to a PR (for example):
@@ -20,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: goflexcar/manage-heroku-review-app@fork-v1
+      - uses: goflexcar/manage-heroku-review-app@x1
         with:
           action: create
         env:
@@ -42,7 +44,7 @@ on:
 jobs:
   destroy-review-app:
     steps:
-      - uses: goflexcar/manage-heroku-review-app@fork-v1
+      - uses: goflexcar/manage-heroku-review-app@x1
         with:
           action: destroy
         env:
