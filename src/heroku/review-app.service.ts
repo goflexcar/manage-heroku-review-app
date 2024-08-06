@@ -86,7 +86,8 @@ export class ReviewAppService {
 
       return web_url;
     } catch (e) {
-      console.log('Unable to fetch web_url', e);
+      this.logger?.warning(`Unable to fetch web_url for id ${id}`);
+      this.logger?.warning(e as Error);
     }
   }
 }
