@@ -30103,12 +30103,12 @@ class ReviewAppService {
             (_b = this.logger) === null || _b === void 0 ? void 0 : _b.info('Creating Review App');
             (_c = this.logger) === null || _c === void 0 ? void 0 : _c.debug(JSON.stringify(input));
             // Create review app
-            const app = yield this.client.post('/review-apps', {
+            const ra = yield this.client.post('/review-apps', {
                 body: input,
             });
-            (_d = this.logger) === null || _d === void 0 ? void 0 : _d.debug(JSON.stringify(app));
+            (_d = this.logger) === null || _d === void 0 ? void 0 : _d.debug(JSON.stringify(ra));
             (_e = this.logger) === null || _e === void 0 ? void 0 : _e.info('Review App created');
-            return app.id;
+            return ra.app.id;
         });
     }
     destroyReviewApp(pr_number) {
@@ -30118,16 +30118,16 @@ class ReviewAppService {
             // List review apps for pipeline
             const reviewApps = yield this.client.get(`/pipelines/${this.pipeline}/review-apps`);
             // Find review app by PR number
-            const app = reviewApps.find((app) => app.pr_number == pr_number);
-            if (!app) {
+            const ra = reviewApps.find((ra) => ra.pr_number == pr_number);
+            if (!ra) {
                 (_b = this.logger) === null || _b === void 0 ? void 0 : _b.info('Review App not found (nothing to do)');
                 return;
             }
             (_c = this.logger) === null || _c === void 0 ? void 0 : _c.info('Destroying Review App');
             // Delete review app
-            yield this.client.delete(`/review-apps/${app.id}`);
+            yield this.client.delete(`/review-apps/${ra.id}`);
             (_d = this.logger) === null || _d === void 0 ? void 0 : _d.info('Review App destroyed');
-            return app.id;
+            return ra.app.id;
         });
     }
     getAppWebUrl(id) {

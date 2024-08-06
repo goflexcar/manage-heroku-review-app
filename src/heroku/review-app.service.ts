@@ -4,6 +4,9 @@ import type { Logger } from '../types';
 interface ReviewApp {
   id: string;
   pr_number: number;
+  app: {
+    id: string;
+  };
 }
 
 export type CreateReviewAppInput = {
@@ -45,14 +48,14 @@ export class ReviewAppService {
     this.logger?.debug(JSON.stringify(input));
 
     // Create review app
-    const app: ReviewApp = await this.client.post('/review-apps', {
+    const ra: ReviewApp = await this.client.post('/review-apps', {
       body: input,
     });
 
-    this.logger?.debug(JSON.stringify(app));
+    this.logger?.debug(JSON.stringify(ra));
     this.logger?.info('Review App created');
 
-    return app.id;
+    return ra.app.id;
   }
 
   async destroyReviewApp(pr_number: number) {
@@ -64,8 +67,8 @@ export class ReviewAppService {
     );
 
     // Find review app by PR number
-    const app = reviewApps.find((app) => app.pr_number == pr_number);
-    if (!app) {
+    const ra = reviewApps.find((ra) => ra.pr_number == pr_number);
+    if (!ra) {
       this.logger?.info('Review App not found (nothing to do)');
       return;
     }
@@ -73,11 +76,11 @@ export class ReviewAppService {
     this.logger?.info('Destroying Review App');
 
     // Delete review app
-    await this.client.delete(`/review-apps/${app.id}`);
+    await this.client.delete(`/review-apps/${ra.id}`);
 
     this.logger?.info('Review App destroyed');
 
-    return app.id;
+    return ra.app.id;
   }
 
   async getAppWebUrl(id: string) {
