@@ -1,10 +1,13 @@
-name: "Manage Heroku Review App"
-description: "Creates or Destroy a Review App in Heroku for the current PR"
+name: 'Manage Heroku Review App'
+description: 'Creates or Destroy a Review App in Heroku for the current PR'
 inputs:
   action:
     description: 'One of: "create" or "destroy"'
     required: true
-    default: "create"
+    default: 'create'
+outputs:
+  review_app_id:
+    description: 'The affected review app ID (not the same as app ID)'
 runs:
-  using: "node20"
-  main: "dist/index.js"
+  using: 'node20'
+  main: 'dist/index.js'
